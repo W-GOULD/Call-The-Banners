@@ -1,2 +1,2 @@
-# Call-The-Banners
+# Call The Banners
 Burp extension which grabs default banners
