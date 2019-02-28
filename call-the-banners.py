@@ -21,32 +21,44 @@ class BurpExtender(IBurpExtender, IScannerCheck, IResponseInfo):
 		callbacks.registerScannerCheck(self)
 
 	def _grab_the_banner(self, response, match):
+		responseheaders = self._helpers.analyzeResponse(response)
+
 		matches = []
+		headers = responseheaders.getHeaders()
+		headerDict = {}
+		for header in headers:
+			if len(header.split(':')) > 1:
+				headerDict[header.split(':')[0]] = header.split(':')[1]
+		print(match)
+		print(headerDict)
+		banner = headerDict.get(match)
+
+		if banner == None:
+			return (matches,"")
+
 		start = 0
 		reslen = len(response)
-		matchlen = len(match)
+		matchlen = len(banner)
 
 		while start < reslen:
-			start = self._helpers.indexOf(response, match, True, start, reslen)
+			start = self._helpers.indexOf(response, banner, True, start, reslen)
 			if start == -1:
 				break
 			matches.append(array('i', [start, start + matchlen]))
 			start += matchlen
 
-		return matches
+		print(matches)
+
+		return (matches,banner)
+
+
 
 	def doPassiveScan(self, baseRequestResponse):
-		responseInfo = self._helpers.analyzeResponse(baseRequestResponse.getResponse())
-		header = responseInfo.getHeaders()
-		h = str(header)
-		headers = [x.strip() for x in h.split(',')]
-		banner = headers.index("Server")
-		print("HEADERS")
-		print(banner)
 		issues = []
 
 		for source in sources:
-			matches = self._grab_the_banner(baseRequestResponse.getResponse(), self._helpers.stringToBytes(source))
+
+			matches,banner = self._grab_the_banner(baseRequestResponse.getResponse(), source)
 
 			if len(matches) > 0:
 				issues.append(CustomScanIssue(
@@ -54,7 +66,7 @@ class BurpExtender(IBurpExtender, IScannerCheck, IResponseInfo):
 					self._helpers.analyzeRequest(baseRequestResponse).getUrl(),
 					[self._callbacks.applyMarkers(baseRequestResponse, None, matches)],
 					"Banner Information",
-					"The following banner was identified: " + source,
+					"The following banner was identified: " + banner,
 					"This information should not be displayed publicly",
 					"Turn off banners",
 					"Information",
